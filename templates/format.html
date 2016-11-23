@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<style type="text/css">
+     #map {
+        width: 500px;
+        height: 500px;
+      }
+</style>
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <link href = "/static/css/bootstrap.min.css" rel = stylesheet media = "screen">
+</head>
+<body>
+    <div class = "container">
+        <h2>Ride Data</h2>
+        <table class = "table">
+            <thead>
+                <tr>
+                    <th>ride number</th>
+                    <th>timestamp</th>
+                    <th>pickup lat</th>
+                    <th>pickup long</th>
+                    <th>dropoff lat</th>
+                    <th>dropoff long</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for ride in files.keys() %}
+                <tr>
+                    <td>
+                        {{ride}}
+                    </td>
+                    <td>
+                        {{ files[ride]['timestamp'] }}
+                    </td>
+                    <td>
+                        {{ files[ride]['lat'] }}
+                    </td>
+                    <td>
+                        {{ files[ride]['long'] }}
+                    </td>
+                    <td>
+                        {{ files[ride]['drop_lat'] }}
+                    </td>
+                    <td>
+                        {{ files[ride]['drop_long'] }}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        <h1>Upload new File</h1>
+        <form action="" method=post enctype=multipart/form-data>
+            <p><input type=file name=file></p>
+            <input type=submit value="Upload Data">
+        </form>
+        <div id="map"></div>
+    </div>
+        <script type="text/javascript">
+            var map;
+            var heatmap;
+            var points = [];
+            var lastShape;
+            function initialize() {
+                var data = {{ files|tojson}};
+                // set center of map to NYC
+                var latitude = parseFloat("40.7128");
+                var longitude = parseFloat("-74.0059");
+                var latlngPos = new google.maps.LatLng(latitude, longitude);
+                // Set up options for the Google map
+                var myOptions = {
+                    zoom: 10,
+                    center: latlngPos,
+                    mapTypeId: google.maps.MapTypeId.ROADMAP
+                };
+                // Define the map
+                map = new google.maps.Map(document.getElementById("map"), myOptions);
+                // var points = [];
+                for (var ride in data) {
+                    for (var location in data[ride]['path']){
+                        var lat = data[ride]['path'][location][1];
+                        var lon = data[ride]['path'][location][0];
+                        var point = new google.maps.LatLng(lat, lon);
+                        points.push(point);
+                    }
+                    //only put markers at pickup locations
+                    var marker = new google.maps.Marker({
+                        position: point,
+                        map: map
+                    });
+                }
+                heatmap = new google.maps.visualization.HeatmapLayer({
+                    data: points,
+                    map:map
+                });
+                // drawing stuff
+                var drawingManager = new google.maps.drawing.DrawingManager({
+                    drawingControl: true,
+                    drawingControlOptions: {
+                        position: google.maps.ControlPosition.TOP_CENTER,
+                        drawingModes: ['circle', 'polygon', 'rectangle']
+                    }
+                });
+                drawingManager.setMap(map);
+                google.maps.event.addListener(drawingManager, 'overlaycomplete', function(event) {
+                    // clear last drawn shape from map if there is one
+                    if (lastShape != null){
+                        lastShape.setMap(null);
+                    }
+                    // set last drawn shape to the new one
+                    lastShape = event.overlay;
+                    console.log(lastShape);
+                    //only display data contained by shape
+                    var newPoints = [];
+                    console.log(event.type);
+                    if (event.type == 'circle') {
+                        var radius = event.overlay.getRadius();
+                        for (i in points){
+                            if (google.maps.geometry.spherical.computeDistanceBetween(points[i], event.overlay.center) < radius){
+                                newPoints.push(points[i]);
+                            }
+                        }
+                    }
+                    else if (event.type == 'polygon'){
+                        for (i in points){
+                            if (google.maps.geometry.poly.containsLocation(points[i], event.overlay)){
+                                newPoints.push(points[i]);
+                            }
+                        }
+                    }
+                    else if (event.type == 'rectangle'){
+                        var rectangle = event.overlay;
+                        for (i in points){
+                            if (rectangle.getBounds().contains(points[i])){
+                                newPoints.push(points[i]);
+                            }
+                        }
+                    }
+                    heatmap.set('data', newPoints);
+                });
+            }
+        </script>
+        <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCw_Iz7GT1vARXvUJsC1ELZ3Iyz0fa1abA&libraries=visualization,drawing,geometry&callback=initialize" async defer></script>
+</body>
+</html>
+
+

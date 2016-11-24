@@ -14,56 +14,17 @@
 </head>
 <body>
     <div class = "container">
-        <h2>Ride Data</h2>
-        <table class = "table">
-            <thead>
-                <tr>
-                    <th>ride number</th>
-                    <th>timestamp</th>
-                    <th>pickup lat</th>
-                    <th>pickup long</th>
-                    <th>dropoff lat</th>
-                    <th>dropoff long</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for ride in files.keys() %}
-                <tr>
-                    <td>
-                        {{ride}}
-                    </td>
-                    <td>
-                        {{ files[ride]['timestamp'] }}
-                    </td>
-                    <td>
-                        {{ files[ride]['lat'] }}
-                    </td>
-                    <td>
-                        {{ files[ride]['long'] }}
-                    </td>
-                    <td>
-                        {{ files[ride]['drop_lat'] }}
-                    </td>
-                    <td>
-                        {{ files[ride]['drop_long'] }}
-                    </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+        <h2>Uber Rides in NYC</h2>
+        <p>The map can take a minute to loads it's data</p>
 
-        <h1>Upload new File</h1>
-        <form action="" method=post enctype=multipart/form-data>
-            <p><input type=file name=file></p>
-            <input type=submit value="Upload Data">
-        </form>
         <div id="map"></div>
+
     </div>
         <script type="text/javascript">
             var map;
             var heatmap;
-            var points = [];
-            var lastShape;
+            var points = []; // all points including directions path
+            var lastShape; // the last geofence drawn on map
             function initialize() {
                 var data = {{ files|tojson}};
                 // set center of map to NYC
@@ -78,25 +39,20 @@
                 };
                 // Define the map
                 map = new google.maps.Map(document.getElementById("map"), myOptions);
-                // var points = [];
                 for (var ride in data) {
                     for (var location in data[ride]['path']){
+                        // in decoded polyline locations, lat is loc[1], lon is loc[0]
                         var lat = data[ride]['path'][location][1];
                         var lon = data[ride]['path'][location][0];
                         var point = new google.maps.LatLng(lat, lon);
                         points.push(point);
                     }
-                    //only put markers at pickup locations
-                    var marker = new google.maps.Marker({
-                        position: point,
-                        map: map
-                    });
                 }
                 heatmap = new google.maps.visualization.HeatmapLayer({
                     data: points,
                     map:map
                 });
-                // drawing stuff
+                // allow user to draw circles, polygons, and rectangles
                 var drawingManager = new google.maps.drawing.DrawingManager({
                     drawingControl: true,
                     drawingControlOptions: {
@@ -105,6 +61,7 @@
                     }
                 });
                 drawingManager.setMap(map);
+                // update map with newly drawn shape
                 google.maps.event.addListener(drawingManager, 'overlaycomplete', function(event) {
                     // clear last drawn shape from map if there is one
                     if (lastShape != null){

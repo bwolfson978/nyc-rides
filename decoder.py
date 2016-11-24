@@ -1,3 +1,4 @@
+'''Credit to: https://gist.github.com/signed0/2031157'''
 def decode(point_str):
     '''Decodes a polyline that has been encoded using Google's algorithm
     http://code.google.com/apis/maps/documentation/polylinealgorithm.html
